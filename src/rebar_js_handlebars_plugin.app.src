@@ -1,0 +1,13 @@
+{application, rebar_js_handlebars_plugin,
+ [
+  {description, "Rebar JavaScript Handlebars Plugin"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  rebar_js_concatenator_plugin
+                 ]},
+  {mod, { rebar_js_handlebars_plugin, []}},
+  {env, []}
+ ]}.
