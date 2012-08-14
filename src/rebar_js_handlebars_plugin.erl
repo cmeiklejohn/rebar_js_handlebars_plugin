@@ -183,7 +183,7 @@ delete_each([First | Rest]) ->
 -ifdef(TEST).
 
 handlebars_test() ->
-    Expected = <<"Ember.TEMPLATES['foo'] = Ember.Handlebars.compile('<h1>bar</h1>')">>,
+    Expected = <<"Ember.TEMPLATES['foo'] = Ember.Handlebars.compile('<h1>bar</h1>');\n">>,
     ListName = "foo",
     ListBody = "<h1>bar</h1>",
     ListTarget = "Ember.TEMPLATES",
