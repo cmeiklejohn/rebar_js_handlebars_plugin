@@ -40,6 +40,9 @@
 %%  templates: list of tuples of format {Destination, [Sources]}
 %%             empty list by default.
 %%
+%%  source_ext: file extension to truncate to derive module name
+%%              ".hbs" by default
+%%
 %% The default settings are the equivalent of:
 %%
 %%   {js_handlebars, [
@@ -47,6 +50,7 @@
 %%       {out_dir,   "priv/www/javascripts"},
 %%       {target,    "Ember.TEMPLATES"},
 %%       {compiler,  "Ember.Handlebars.compile"},
+%%       {source_ext,".hbs"},
 %%       {templates, []}
 %%   ]}.
 %%
@@ -95,8 +99,8 @@ clean(Config, _AppFile) ->
 %% @spec handlebars(list(), list(), list(), list()) -> binary()
 %% @doc Generate a handlebars compiler line.
 handlebars(Name, Body, Target, Compiler) ->
-    Targeted = lists:flatten([Target, "['" ++ Name ++ "']"]),
-    Compiled = lists:flatten([Compiler, "('" ++ Body ++ "')"]),
+    Targeted = lists:flatten([Target, "['" ++ ensure_list(Name) ++ "']"]),
+    Compiled = lists:flatten([Compiler, "('" ++ ensure_list(Body) ++ "');\n"]),
     list_to_binary(lists:flatten([Targeted, " = " ++ Compiled])).
 
 %% ===================================================================
@@ -104,7 +108,7 @@ handlebars(Name, Body, Target, Compiler) ->
 %% ===================================================================
 
 options(Config) ->
-    rebar_config:get(Config, js_handlebars, []).
+    rebar_config:get_local(Config, js_handlebars, []).
 
 option(Option, Options) ->
     proplists:get_value(Option, Options, default(Option)).
@@ -113,14 +117,24 @@ default(doc_root)  -> "priv/assets/javascripts";
 default(out_dir)   -> "priv/www/javascripts";
 default(target)    -> "Ember.TEMPLATES";
 default(compiler)  -> "Ember.Handlebars.compile";
+default(source_ext)-> ".hbs";
 default(templates) -> [].
+
+ensure_list(Object) ->
+    case is_binary(Object) of
+        true ->
+            binary_to_list(Object);
+        false ->
+            Object
+    end.
 
 read(File) ->
     case file:read_file(File) of
         {ok, Binary} ->
-           Binary;
+           list_to_binary(re:replace(binary_to_list(Binary), "\\n+", "",
+                    [global]));
         {error, Reason} ->
-           rebar_log:log(error, "Reading asset ~s failed during concatenation:~n  ~p~n",
+           rebar_log:log(error, "Reading asset ~s failed during compilation:~n  ~p~n",
                    [File, Reason]),
            rebar_utils:abort()
     end.
@@ -135,11 +149,11 @@ build_each([]) ->
 build_each([{Destination, Sources, Options} | Rest]) ->
     Target = option(target, Options),
     Compiler = option(compiler, Options),
-    Destination1 = Destination ++ ".js",
-    Contents = [handlebars(filename:basename(Source, ".hbs"),
-                    read(Source), Target, Compiler) || Source <- Sources],
+    SourceExt = option(source_ext, Options),
+    Contents = [handlebars(filename:basename(Source, SourceExt), read(Source), Target, Compiler)
+                    || Source <- Sources],
     Concatenated = rebar_js_concatenator_plugin:concatenate(Contents),
-    case file:write_file(Destination1, Concatenated, [write]) of
+    case file:write_file(Destination, Concatenated, [write]) of
         ok ->
             io:format("Compiled handlebars asset ~s~n", [Destination]);
         {error, Reason} ->
@@ -169,11 +183,19 @@ delete_each([First | Rest]) ->
 -ifdef(TEST).
 
 handlebars_test() ->
-    Name = "foo",
-    Body = "<h1>bar</h1>",
-    Target = "Ember.TEMPLATES",
-    Compiler = "Ember.Handlebars.compile",
-    Output = handlebars(Name, Body, Target, Compiler),
-    ?assertEqual(<<"Ember.TEMPLATES['foo'] = Ember.Handlebars.compile('<h1>bar</h1>')">>, Output).
+    Expected = <<"Ember.TEMPLATES['foo'] = Ember.Handlebars.compile('<h1>bar</h1>')">>,
+    ListName = "foo",
+    ListBody = "<h1>bar</h1>",
+    ListTarget = "Ember.TEMPLATES",
+    ListCompiler = "Ember.Handlebars.compile",
+    ListOutput = handlebars(ListName, ListBody, ListTarget, ListCompiler),
+    ?assertEqual(Expected, ListOutput),
+
+    BinaryName = list_to_binary(ListName),
+    BinaryBody = list_to_binary(ListBody),
+    BinaryTarget = list_to_binary(ListTarget),
+    BinaryCompiler = list_to_binary(ListCompiler),
+    BinaryOutput = handlebars(BinaryName, BinaryBody, BinaryTarget, BinaryCompiler),
+    ?assertEqual(Expected, BinaryOutput).
 
 -endif.
