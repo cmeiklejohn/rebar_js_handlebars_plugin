@@ -61,7 +61,7 @@
 %%       {out_dir,   "priv/www/javascripts"},
 %%       {target,    "Ember.TEMPLATES"},
 %%       {compiler,  "Ember.Handlebars.compile"},
-%%       {templates, [{"templates", ["sidebar", "application"]}]}
+%%       {templates, [{"templates.js", ["sidebar.hbs", "application.hbs"]}]}
 %%   ]}.
 %%
 
