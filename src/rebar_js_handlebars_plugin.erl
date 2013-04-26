@@ -67,19 +67,17 @@
 
 -module(rebar_js_handlebars_plugin).
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
 -export([compile/2,
          clean/2]).
 
 -export([handlebars/4]).
 
+-type name() :: string()|binary().
+
 %% ===================================================================
 %% Public API
 %% ===================================================================
-
+-spec compile(rebar_config:config(), _) -> ok.
 compile(Config, _AppFile) ->
     Options = options(Config),
     OutDir = option(out_dir, Options),
@@ -89,6 +87,7 @@ compile(Config, _AppFile) ->
         normalize_paths(Sources, DocRoot), Options} || {Destination, Sources} <- Templates],
     build_each(Targets).
 
+-spec clean(rebar_config:config(), _) -> ok.
 clean(Config, _AppFile) ->
     Options = options(Config),
     OutDir = option(out_dir, Options),
@@ -96,8 +95,8 @@ clean(Config, _AppFile) ->
     Targets = [normalize_path(Destination, OutDir) || {Destination, _} <- Templates],
     delete_each(Targets).
 
-%% @spec handlebars(list(), list(), list(), list()) -> binary()
 %% @doc Generate a handlebars compiler line.
+-spec handlebars(name(), name(), name(), name()) -> binary().
 handlebars(Name, Body, Target, Compiler) ->
     Targeted = lists:flatten([Target, "['" ++ ensure_list(Name) ++ "']"]),
     Compiled = lists:flatten([Compiler, "('" ++ ensure_list(Body) ++ "');\n"]),
@@ -178,27 +177,3 @@ delete_each([First | Rest]) ->
             rebar_log:log(error, "Failed to delete ~s: ~p\n", [First, Reason])
     end,
     delete_each(Rest).
-
-%% ===================================================================
-%% Tests
-%% ===================================================================
-
--ifdef(TEST).
-
-handlebars_test() ->
-    Expected = <<"Ember.TEMPLATES['foo'] = Ember.Handlebars.compile('<h1>bar</h1>');\n">>,
-    ListName = "foo",
-    ListBody = "<h1>bar</h1>",
-    ListTarget = "Ember.TEMPLATES",
-    ListCompiler = "Ember.Handlebars.compile",
-    ListOutput = handlebars(ListName, ListBody, ListTarget, ListCompiler),
-    ?assertEqual(Expected, ListOutput),
-
-    BinaryName = list_to_binary(ListName),
-    BinaryBody = list_to_binary(ListBody),
-    BinaryTarget = list_to_binary(ListTarget),
-    BinaryCompiler = list_to_binary(ListCompiler),
-    BinaryOutput = handlebars(BinaryName, BinaryBody, BinaryTarget, BinaryCompiler),
-    ?assertEqual(Expected, BinaryOutput).
-
--endif.
